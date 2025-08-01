@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Career Coach</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Layer a semi-transparent gradient over the new background image - reduced opacity for more visibility */
+            background: 
+                linear-gradient(to top, rgba(243, 231, 233, 0.8) 0%, rgba(227, 238, 255, 0.8) 100%),
+                url('https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1770&q=80');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed; /* Keeps the background fixed during scroll */
+        }
+        .chat-bubble-user {
+            background-color: #6D28D9; /* violet-700 */
+            color: white;
+        }
+        .chat-bubble-ai {
+            background-color: #ffffff; /* white */
+            color: #111827; /* gray-900 */
+            position: relative; /* For copy button positioning */
+        }
+        .chat-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .chat-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .chat-container::-webkit-scrollbar-thumb {
+            background: #aaa;
+            border-radius: 4px;
+        }
+        .chat-container::-webkit-scrollbar-thumb:hover {
+            background: #888;
+        }
+        .example-prompt:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        /* Animation for new messages */
+        @keyframes slideInFade {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .message-animate {
+            animation: slideInFade 0.3s ease-out forwards;
+        }
+        /* Style for the copy button on AI messages */
+        .copy-btn {
+            position: absolute;
+            bottom: 8px;
+            right: -40px; /* Positioned outside the bubble initially */
+            background-color: #E5E7EB;
+            color: #4B5563;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out, right 0.2s ease-in-out;
+        }
+        .chat-bubble-ai-wrapper:hover .copy-btn {
+            opacity: 1;
+            right: 8px; /* Slides in on hover */
+        }
+        .copy-btn:hover {
+            background-color: #D1D5DB;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-3xl bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl flex flex-col h-[90vh]">
+        <!-- Header -->
+        <div class="p-6 border-b border-gray-200/80 flex items-center justify-between bg-white/60 rounded-t-2xl">
+            <div class="flex items-center space-x-4">
+                 <div class="w-12 h-12 bg-violet-600 rounded-full flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">AI Career Coach by &copy;Vikash Kumar.</h1>
+                    <p class="text-sm text-gray-500 flex items-center">
+                        <span class="relative flex h-3 w-3 mr-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                        </span>
+                        Online
+                    </p>
+                </div>
+            </div>
+            <button id="clear-chat-btn" class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100/50 rounded-lg transition-colors" title="Clear Chat">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </button>
+        </div>
+
+        <!-- Chat Container -->
+        <div id="chat-container" class="flex-1 p-6 overflow-y-auto chat-container bg-transparent">
+            <!-- Initial State / Example Prompts -->
+            <div id="initial-state" class="flex flex-col items-center justify-center h-full">
+                 <div class="text-center p-6 bg-white/50 rounded-lg">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-2">How can I help you advance your career today?</h2>
+                    <p class="text-gray-500 mb-6">Select an example below or type your own question.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg mt-6">
+                    <button onclick="handleExamplePrompt('Critique my resume for a software engineer role.')" class="example-prompt text-left p-4 bg-white/80 rounded-lg shadow-md transition-all duration-300">
+                        <p class="font-semibold text-gray-700">Critique my resume</p>
+                        <p class="text-sm text-gray-500">for a software engineer role.</p>
+                    </button>
+                    <button onclick="handleExamplePrompt('Help me prepare for a behavioral interview question: Tell me about a time you failed.')" class="example-prompt text-left p-4 bg-white/80 rounded-lg shadow-md transition-all duration-300">
+                        <p class="font-semibold text-gray-700">Prepare for an interview</p>
+                        <p class="text-sm text-gray-500">"Tell me about a time you failed."</p>
+                    </button>
+                     <button onclick="handleExamplePrompt('What are the key skills needed for a product manager in 2025?')" class="example-prompt text-left p-4 bg-white/80 rounded-lg shadow-md transition-all duration-300">
+                        <p class="font-semibold text-gray-700">Explore career paths</p>
+                        <p class="text-sm text-gray-500">Skills for a product manager.</p>
+                    </button>
+                    <button onclick="handleExamplePrompt('Help me write a cover letter for a marketing analyst position.')" class="example-prompt text-left p-4 bg-white/80 rounded-lg shadow-md transition-all duration-300">
+                        <p class="font-semibold text-gray-700">Write a cover letter</p>
+                        <p class="text-sm text-gray-500">for a marketing analyst job.</p>
+                    </button>
+                </div>
+            </div>
+            <!-- Chat messages will be appended here -->
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-6 border-t border-gray-200/80 bg-white/60 rounded-b-2xl">
+            <form id="chat-form" class="flex items-center space-x-4">
+                <input type="text" id="chat-input" placeholder="Ask me anything about your career..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 transition-shadow bg-white/80" autocomplete="off">
+                <button type="submit" class="bg-violet-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" transform="rotate(90 12 12)" />
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const initialState = document.getElementById('initial-state');
+        const clearChatBtn = document.getElementById('clear-chat-btn');
+
+        const systemPrompt = "You are an expert AI Career Coach. Your goal is to provide supportive, insightful, and actionable advice to users. You should be encouraging and help users with tasks like resume reviews, interview preparation, career path exploration, and cover letter writing. Always be positive and professional.";
+        let chatHistory = [];
+
+        // --- IMPORTANT: For Local Development ---
+        const apiKey = "AIzaSyArmxFvHxqeMjrTQjjfp8FgpMa2N5s9o3Q"; // Replace with your key for local testing
+
+        async function fetchWithBackoff(url, options, maxRetries = 3) {
+            let lastError;
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        if (response.status >= 400 && response.status < 500) {
+                            const errorData = await response.json();
+                            console.error("API Client Error:", errorData);
+                            throw new Error(`Request failed: ${errorData.error.message}`);
+                        }
+                        throw new Error(`API server error with status ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    lastError = error;
+                    if (i < maxRetries - 1) {
+                        console.warn(`API call attempt ${i + 1} failed. Retrying in ${2 ** i}s...`);
+                        await new Promise(resolve => setTimeout(resolve, (2 ** i) * 1000));
+                    }
+                }
+            }
+            throw lastError;
+        }
+
+        async function getGeminiResponse(prompt) {
+            if (apiKey === "YOUR_API_KEY_HERE" && !window.location.hostname.includes('usercontent.goog')) {
+                return "It looks like you're running this locally. Please get a free API key from Google AI Studio and replace the 'YOUR_API_KEY_HERE' placeholder in the script to enable the AI.";
+            }
+
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+            const payload = {
+                contents: chatHistory,
+                system_instruction: { parts: [{ text: systemPrompt }] }
+            };
+            
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            try {
+                const result = await fetchWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (result.candidates && result.candidates.length > 0 && result.candidates[0].content?.parts?.length > 0) {
+                    const aiText = result.candidates[0].content.parts[0].text;
+                    chatHistory.push({ role: "model", parts: [{ text: aiText }] });
+                    return aiText;
+                } else {
+                    console.error("Unexpected API response structure:", result);
+                    if (result.promptFeedback) {
+                         console.error("Prompt Feedback:", result.promptFeedback);
+                         return "I'm sorry, I can't respond to that request. It may violate safety policies. Could you please rephrase your question?";
+                    }
+                    chatHistory.pop();
+                    return "I received an empty response from the AI. Please try again.";
+                }
+            } catch (error) {
+                console.error("Error calling Gemini API after retries:", error);
+                chatHistory.pop(); 
+                return `Sorry, I'm having trouble connecting to the AI service. \n\nError: ${error.message}`;
+            }
+        }
+        
+        function appendMessage(message, sender) {
+            if (initialState.style.display !== 'none') {
+                initialState.style.display = 'none';
+            }
+
+            const messageWrapper = document.createElement('div');
+            messageWrapper.classList.add('flex', 'mb-4', 'max-w-xl', 'mx-auto', 'message-animate');
+            
+            const bubble = document.createElement('div');
+            bubble.classList.add('p-4', 'rounded-lg', 'max-w-lg', 'whitespace-pre-wrap', 'shadow-md');
+            bubble.textContent = message;
+
+            if (sender === 'user') {
+                messageWrapper.classList.add('justify-end');
+                bubble.classList.add('chat-bubble-user');
+                messageWrapper.appendChild(bubble);
+            } else {
+                messageWrapper.classList.add('justify-start', 'chat-bubble-ai-wrapper');
+                bubble.classList.add('chat-bubble-ai');
+                
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.title = 'Copy text';
+                const copyIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+                const checkIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+                copyBtn.innerHTML = copyIcon;
+                
+                copyBtn.addEventListener('click', () => {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = message;
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        copyBtn.innerHTML = checkIcon;
+                        setTimeout(() => { copyBtn.innerHTML = copyIcon; }, 2000);
+                    } catch (err) {
+                        console.error('Failed to copy: ', err);
+                    }
+                    document.body.removeChild(textArea);
+                });
+                
+                messageWrapper.appendChild(bubble);
+                messageWrapper.appendChild(copyBtn);
+            }
+            
+            chatContainer.appendChild(messageWrapper);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        function showLoadingIndicator() {
+            const loadingWrapper = document.createElement('div');
+            loadingWrapper.id = 'loading-indicator';
+            loadingWrapper.classList.add('flex', 'mb-4', 'max-w-xl', 'mx-auto', 'justify-start', 'message-animate');
+            
+            const bubble = document.createElement('div');
+            bubble.classList.add('p-4', 'rounded-lg', 'chat-bubble-ai', 'flex', 'items-center', 'shadow-md');
+            
+            const dots = `<div class="flex space-x-1"><div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: -0.3s;"></div><div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: -0.15s;"></div><div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div></div>`;
+            bubble.innerHTML = dots;
+            
+            loadingWrapper.appendChild(bubble);
+            chatContainer.appendChild(loadingWrapper);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function removeLoadingIndicator() {
+            const loadingIndicator = document.getElementById('loading-indicator');
+            if (loadingIndicator) {
+                loadingIndicator.remove();
+            }
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const userInput = chatInput.value.trim();
+            if (!userInput) return;
+
+            appendMessage(userInput, 'user');
+            chatInput.value = '';
+            chatForm.querySelector('button').disabled = true;
+
+            showLoadingIndicator();
+
+            const aiResponse = await getGeminiResponse(userInput);
+            removeLoadingIndicator();
+            appendMessage(aiResponse, 'ai');
+
+            chatForm.querySelector('button').disabled = false;
+            chatInput.focus();
+        });
+
+        clearChatBtn.addEventListener('click', () => {
+            chatContainer.innerHTML = '';
+            chatHistory = [];
+            chatContainer.appendChild(initialState);
+            initialState.style.display = 'flex';
+        });
+
+        window.handleExamplePrompt = (prompt) => {
+            chatInput.value = prompt;
+            chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+        }
+
+    </script>
+</body>
+<footer>
+  <p>&copy; 2025 Vikash Kumar. All rights reserved.</p>
+</footer>
+</html>
